@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  ai-reading-assistant:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-reading-assistant
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment:
+      - APP_ENV=${APP_ENV:-production}
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+      - DATABASE_URL=sqlite:///./data/reading_assistant.db
+      - LLM_PROVIDER=${LLM_PROVIDER:-auto}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4o-mini}
+      - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.3}
+      - SEED_DEMO_DATA=${SEED_DEMO_DATA:-true}
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/system/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

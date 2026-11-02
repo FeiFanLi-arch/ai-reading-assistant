@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>个人 AI 阅读助手 · DeepRead AI</title>
+    <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+<body>
+    <!-- ======================= 顶部全局导航栏 ======================= -->
+    <header class="top-navbar">
+        <div class="brand-area">
+            <div class="brand-logo" aria-hidden="true">📖</div>
+            <div>
+                <h1 class="brand-title">个人 AI 阅读助手</h1>
+                <span class="brand-subtitle">结构化精读 · 批判性追问 · 多文章主题对比</span>
+            </div>
+        </div>
+
+        <div class="stats-bar" id="global-stats-bar">
+            <div class="stat-pill" title="历史精读文章总数">
+                <span class="stat-label">文章</span>
+                <strong class="stat-value" id="stat-articles">0</strong>
+            </div>
+            <div class="stat-pill" title="多文章对比主题数">
+                <span class="stat-label">对比主题</span>
+                <strong class="stat-value" id="stat-topics">0</strong>
+            </div>
+            <div class="stat-pill" title="累计深度追问互动次数">
+                <span class="stat-label">深度追问</span>
+                <strong class="stat-value" id="stat-questions">0</strong>
+            </div>
+            <div class="stat-pill" title="累计精读字数">
+                <span class="stat-label">累计字数</span>
+                <strong class="stat-value" id="stat-words">0</strong>
+            </div>
+        </div>
+
+        <div class="navbar-actions">
+            <button class="btn btn-primary" id="btn-open-import-modal">
+                <span>＋ 导入文章 (链接 / 文本)</span>
+            </button>
+            <button class="btn btn-secondary" id="btn-open-topic-modal">
+                <span>🗂️ 新建对比主题</span>
+            </button>
+            <button class="btn btn-ghost engine-status-btn" id="btn-open-settings-modal" title="配置大模型 API Key 或切换分析引擎">
+                <span class="engine-dot" id="engine-status-dot"></span>
+                <span id="engine-status-text">AI 引擎设置</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- ======================= 三栏式主工作台 ======================= -->
+    <div class="workbench-layout">
+        <!-- 左侧栏：知识库历史与主题导航 -->
+        <aside class="left-sidebar">
+            <div class="sidebar-mode-tabs" role="tablist">
+                <button class="mode-tab active" id="tab-mode-articles" data-mode="articles" role="tab">
+                    📚 阅读历史 (<span id="sidebar-article-count">0</span>)
+                </button>
+                <button class="mode-tab" id="tab-mode-topics" data-mode="topics" role="tab">
+                    🗂️ 主题对比 (<span id="sidebar-topic-count">0</span>)
+                </button>
+            </div>
+
+            <!-- 左侧面板 A：文章历史列表与筛选 -->
+            <div class="sidebar-panel" id="sidebar-articles-panel">
+                <div class="search-box-wrapper">
+                    <input
+                        type="search"
+                        id="input-article-search"
+                        class="search-input"
+                        placeholder="搜索标题、正文、观点、标签或批注..."
+                    />
+                </div>
+
+                <div class="filter-chips-row" id="article-status-filters">
+                    <button class="filter-chip active" data-filter="all">全部</button>
+                    <button class="filter-chip" data-filter="favorite">⭐ 收藏</button>
+                    <button class="filter-chip" data-filter="reading">精读中</button>
+                    <button class="filter-chip" data-filter="completed">已读完</button>
+                </div>
+
+                <div class="tags-filter-bar" id="sidebar-tags-bar"></div>
+
+                <div class="history-list" id="article-history-list">
+                    <!-- 由 JS 动态渲染历史文章卡片 -->
+                </div>
+            </div>
+
+            <!-- 左侧面板 B：多文章主题列表 -->
+            <div class="sidebar-panel hidden" id="sidebar-topics-panel">
+                <div class="sidebar-panel-header">
+                    <p class="sidebar-hint">将多篇相关或不同立场的文章放入同一「主题」，一键生成共识、分歧与横向对比矩阵。</p>
+                    <button class="btn btn-primary btn-block" id="btn-sidebar-new-topic">
+                        ＋ 创建新研究主题
+                    </button>
+                </div>
+                <div class="history-list" id="topic-history-list">
+                    <!-- 由 JS 动态渲染主题卡片 -->
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <button class="btn-link" id="btn-restore-demo" title="重新写入示例文章与对比主题">
+                    🔄 恢复/加载示例文章与主题
+                </button>
+            </div>
+        </aside>
+
+        <!-- 中间栏：核心精读视图 / 主题对比报告视图 -->
+        <main class="center-workspace">
+            <!-- 空状态提示 -->
+            <section class="empty-workspace hidden" id="workspace-empty-state">
+                <div class="empty-card">
+                    <div class="empty-icon">📚</div>
+                    <h2>开始你的深度阅读之旅</h2>
+                    <p>粘贴文章链接或直接粘贴长文，AI 将自动为你拆解<strong>核心观点、关键论据、作者态度与可行动洞察</strong>，并支持针对任意观点的批判性追问与多篇主题对比。</p>
+                    <div class="empty-actions">
+                        <button class="btn btn-primary" id="btn-empty-import">＋ 立即导入第一篇文章</button>
+                        <button class="btn btn-secondary" id="btn-empty-seed">✨ 加载内置示例文章与对比主题</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 视图 1：单篇文章结构化精读工作区 -->
+            <section class="article-workspace" id="article-workspace-view">
+                <div class="workspace-header">
+                    <div class="workspace-meta-top">
+                        <span class="source-badge" id="article-source-badge">TEXT</span>
+                        <span class="meta-item" id="article-author-meta"></span>
+                        <span class="meta-item" id="article-stats-meta"></span>
+                        <span class="engine-badge" id="article-engine-badge"></span>
+                        <a class="meta-link hidden" id="article-original-url" href="#" target="_blank" rel="noopener noreferrer">🔗 查看原网页</a>
+                    </div>
+
+                    <h2 class="workspace-title" id="article-detail-title">加载中...</h2>
+
+                    <div class="article-tags-row" id="article-detail-tags"></div>
+
+                    <div class="workspace-toolbar">
+                        <div class="toolbar-left">
+                            <button class="content-tab active" data-tab="summary" id="tab-btn-summary">
+                                ✨ 结构化摘要
+                            </button>
+                            <button class="content-tab" data-tab="original" id="tab-btn-original">
+                                📄 清洗后原文 <span class="tab-subhint">(支持划词引用追问)</span>
+                            </button>
+                            <button class="content-tab" data-tab="notes" id="tab-btn-notes">
+                                📝 个人批注
+                            </button>
+                        </div>
+
+                        <div class="toolbar-right">
+                            <button class="btn btn-sm btn-ghost" id="btn-toggle-favorite" title="收藏/取消收藏">
+                                ⭐ 收藏
+                            </button>
+                            <select class="status-select" id="select-reading-status" title="切换阅读状态">
+                                <option value="unread">📌 未读</option>
+                                <option value="reading">📖 精读中</option>
+                                <option value="completed">✅ 已精读</option>
+                            </select>
+                            <button class="btn btn-sm btn-secondary" id="btn-assign-topic" title="将该文章归入某个对比主题">
+                                🗂️ 归入主题
+                            </button>
+                            <button class="btn btn-sm btn-ghost" id="btn-regenerate-summary" title="重新生成结构化摘要">
+                                🔄 重生成
+                            </button>
+                            <button class="btn btn-sm btn-ghost" id="btn-export-article" title="导出 Markdown 读书笔记">
+                                📥 导出 MD
+                            </button>
+                            <button class="btn btn-sm btn-danger-ghost" id="btn-delete-article" title="删除此文章">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 子标签页 1：结构化摘要面板 -->
+                <div class="workspace-tab-content" id="panel-article-summary">
+                    <!-- 一句话核心总结 TL;DR -->
+                    <div class="tldr-banner">
+                        <div class="tldr-header">
+                            <span class="tldr-label">📌 一句话核心总结 (TL;DR)</span>
+                            <button class="btn-mini" id="btn-copy-summary" title="复制结构化摘要文本">📋 复制摘要</button>
+                        </div>
+                        <p class="tldr-text" id="summary-tldr-text"></p>
+                    </div>
+
+                    <!-- 四大核心结构化模块网格 -->
+                    <div class="summary-sections">
+                        <!-- 1. 核心观点 -->
+                        <section class="summary-card">
+                            <div class="section-header">
+                                <h3>🎯 一、核心观点 (Core Viewpoints)</h3>
+                                <span class="section-subtitle">点击任意观点右侧的「引用追问」可针对该论断发起批判性质询</span>
+                            </div>
+                            <div class="viewpoints-list" id="summary-viewpoints-list"></div>
+                        </section>
+
+                        <!-- 2. 关键论据 -->
+                        <section class="summary-card">
+                            <div class="section-header">
+                                <h3>⚖️ 二、关键论据与论证拆解 (Key Arguments &amp; Evidence)</h3>
+                                <span class="section-subtitle">识别作者使用的实证数据、案例对比与因果推演链条</span>
+                            </div>
+                            <div class="arguments-list" id="summary-arguments-list"></div>
+                        </section>
+
+                        <!-- 3. 作者态度与立场审视 -->
+                        <section class="summary-card">
+                            <div class="section-header">
+                                <h3>🧭 三、作者态度与潜在偏见审视 (Author's Stance &amp; Bias)</h3>
+                                <span class="section-subtitle">跳出作者叙事框架，审视行文基调与隐含前提假设</span>
+                            </div>
+                            <div class="stance-container" id="summary-stance-box"></div>
+                        </section>
+
+                        <!-- 4. 可行动洞察 -->
+                        <section class="summary-card">
+                            <div class="section-header">
+                                <h3>🚀 四、可行动洞察 (Actionable Insights)</h3>
+                                <span class="section-subtitle">将阅读收获转化为可验证的具体实践步骤</span>
+                            </div>
+                            <div class="insights-list" id="summary-insights-list"></div>
+                        </section>
+
+                        <!-- 5. 核心概念与术语表 -->
+                        <section class="summary-card">
+                            <div class="section-header">
+                                <h3>📖 五、核心概念与术语界定 (Key Concepts)</h3>
+                            </div>
+                            <div class="concepts-grid" id="summary-concepts-grid"></div>
+                        </section>
+                    </div>
+                </div>
+
+                <!-- 子标签页 2：清洗后原文阅读器（支持划词引用追问） -->
+                <div class="workspace-tab-content hidden" id="panel-article-original">
+                    <div class="reader-Selection-bar">
+                        <span>💡 <strong>阅读提示</strong>：用鼠标在下方正文中选中任意句子或段落，点击右侧按钮即可直接引用该片段向 AI 发起追问。</span>
+                        <button class="btn btn-sm btn-primary" id="btn-quote-selected-text">💬 引用选中文字追问</button>
+                    </div>
+                    <article class="original-content-reader" id="article-raw-content-body"></article>
+                </div>
+
+                <!-- 子标签页 3：个人阅读批注与反思笔记 -->
+                <div class="workspace-tab-content hidden" id="panel-article-notes">
+                    <div class="notes-editor-card">
+                        <div class="notes-editor-header">
+                            <div>
+                                <h3>📝 个人阅读批注与思考笔记</h3>
+                                <p class="section-subtitle">记录你的个人感悟、实践反馈或与自身业务的结合点（导出 Markdown 时会自动包含此部分）。</p>
+                            </div>
+                            <button class="btn btn-primary" id="btn-save-user-notes">💾 保存批注</button>
+                        </div>
+                        <textarea
+                            id="textarea-user-notes"
+                            class="notes-textarea"
+                            rows="14"
+                            placeholder="在这里写下你的思考、质疑或行动计划..."
+                        ></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 视图 2：多文章「主题」对比总结工作区 -->
+            <section class="topic-workspace hidden" id="topic-workspace-view">
+                <div class="workspace-header topic-header">
+                    <div class="workspace-meta-top">
+                        <span class="topic-badge-dot" id="topic-color-indicator"></span>
+                        <span class="source-badge">MULTI-ARTICLE TOPIC</span>
+                        <span class="meta-item" id="topic-article-count-meta"></span>
+                        <span class="engine-badge" id="topic-engine-badge"></span>
+                    </div>
+
+                    <h2 class="workspace-title" id="topic-detail-title">主题加载中...</h2>
+                    <p class="topic-description-text" id="topic-detail-desc"></p>
+
+                    <div class="workspace-toolbar">
+                        <div class="toolbar-left">
+                            <button class="btn btn-primary" id="btn-run-topic-compare">
+                                ⚡ 生成 / 刷新多文章对比总结
+                            </button>
+                            <button class="btn btn-secondary" id="btn-manage-topic-articles">
+                                ➕ 管理收录文章
+                            </button>
+                        </div>
+                        <div class="toolbar-right">
+                            <button class="btn btn-sm btn-ghost" id="btn-export-topic">
+                                📥 导出对比报告 (MD)
+                            </button>
+                            <button class="btn btn-sm btn-danger-ghost" id="btn-delete-topic" title="删除此主题">
+                                🗑️ 删除主题
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="workspace-tab-content">
+                    <!-- 收录文章横向卡片条 -->
+                    <section class="summary-card">
+                        <div class="section-header">
+                            <h3>📚 本主题收录的对比文献 (<span id="topic-included-count">0</span> 篇)</h3>
+                            <span class="section-subtitle">点击文章标题可跳转查看单篇精读详情；增删文章后可点击上方「刷新多文章对比总结」</span>
+                        </div>
+                        <div class="topic-articles-strip" id="topic-articles-strip"></div>
+                    </section>
+
+                    <!-- 主题对比总结主体 -->
+                    <div id="topic-comparison-container">
+                        <!-- 1. 全景综述 -->
+                        <div class="tldr-banner topic-overview-banner">
+                            <div class="tldr-header">
+                                <span class="tldr-label">🌐 一、主题全景综述 (Executive Overview)</span>
+                            </div>
+                            <p class="tldr-text" id="topic-overview-text"></p>
+                        </div>
+
+                        <div class="summary-sections">
+                            <!-- 2. 跨文章核心共识 -->
+                            <section class="summary-card">
+                                <div class="section-header">
+                                    <h3>🤝 二、跨文章核心共识 (Consensus Across Articles)</h3>
+                                    <span class="section-subtitle">不同作者在底层逻辑上共同印证的结论</span>
+                                </div>
+                                <div class="viewpoints-list" id="topic-consensus-list"></div>
+                            </section>
+
+                            <!-- 3. 关键分歧与张力对比 -->
+                            <section class="summary-card">
+                                <div class="section-header">
+                                    <h3>⚡ 三、关键分歧与张力对比 (Disagreements &amp; Tensions)</h3>
+                                    <span class="section-subtitle">各篇文章在切入视角、归因重心与执行节奏上的交锋</span>
+                                </div>
+                                <div class="disagreements-list" id="topic-disagreements-list"></div>
+                            </section>
+
+                            <!-- 4. 多维横向对比矩阵表格 -->
+                            <section class="summary-card">
+                                <div class="section-header">
+                                    <h3>📊 四、多维横向对比矩阵 (Cross-Article Synthesis Matrix)</h3>
+                                    <span class="section-subtitle">一张表看清每篇文章的核心论点、论证方法、态度基调、独特价值与局限</span>
+                                </div>
+                                <div class="matrix-table-wrapper">
+                                    <table class="comparison-matrix-table">
+                                        <thead>
+                                            <tr>
+                                                <th>文章标题 &amp; 来源</th>
+                                                <th>态度基调</th>
+                                                <th>论证方法</th>
+                                                <th>核心论点</th>
+                                                <th>独特增量价值</th>
+                                                <th>视角局限性</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="topic-matrix-tbody"></tbody>
+                                    </table>
+                                </div>
+                            </section>
+
+                            <!-- 5. 视角互补与认知升级路径 -->
+                            <section class="summary-card">
+                                <div class="section-header">
+                                    <h3>🧩 五、视角互补与认知升级路径 (Complementary Synthesis)</h3>
+                                </div>
+                                <div class="complement-box" id="topic-complement-box"></div>
+                            </section>
+
+                            <!-- 6. 跨文章综合行动建议 -->
+                            <section class="summary-card">
+                                <div class="section-header">
+                                    <h3>🛠️ 六、跨文章综合行动建议 (Synthesized Action Plan)</h3>
+                                </div>
+                                <div class="insights-list" id="topic-actions-list"></div>
+                            </section>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 右侧栏：AI 深度追问与思辨对话工作台 -->
+        <aside class="right-qa-panel">
+            <div class="qa-panel-header">
+                <div>
+                    <h3 id="qa-panel-title">💬 深度追问与思辨</h3>
+                    <p class="qa-panel-subtitle" id="qa-panel-subtitle">针对当前文章检验逻辑漏洞、关联经典理论或探讨落地方法</p>
+                </div>
+                <button class="btn-mini" id="btn-clear-chat" title="清空当前对话记录">清空记录</button>
+            </div>
+
+            <!-- 预设批判性追问快捷胶囊 -->
+            <div class="quick-prompts-area">
+                <div class="quick-prompts-label">⚡ 快捷思辨追问（点击直接提问）：</div>
+                <div class="quick-prompts-list" id="quick-prompts-container">
+                    <!-- 由 JS 根据当前文章或主题动态渲染快捷问题 -->
+                </div>
+            </div>
+
+            <!-- 对话消息流 -->
+            <div class="qa-messages-container" id="qa-messages-list">
+                <!-- 由 JS 动态渲染追问消息 -->
+            </div>
+
+            <!-- 底部输入框与引用预览 -->
+            <div class="qa-input-area">
+                <div class="quoted-snippet-bar hidden" id="qa-quoted-bar">
+                    <div class="quoted-snippet-content">
+                        <span class="quoted-badge">📌 引用片段</span>
+                        <span class="quoted-text-preview" id="qa-quoted-preview"></span>
+                    </div>
+                    <button class="quoted-close-btn" id="btn-clear-quote" title="取消引用">×</button>
+                </div>
+
+                <form id="form-qa-ask" class="qa-form">
+                    <textarea
+                        id="input-qa-question"
+                        class="qa-textarea"
+                        rows="3"
+                        placeholder="输入你的追问（例如：“这个观点有什么漏洞？”“和第一性原理有什么关系？”）..."
+                    ></textarea>
+                    <div class="qa-form-footer">
+                        <span class="qa-shortcut-hint">Enter 发送 · Shift+Enter 换行</span>
+                        <button type="submit" class="btn btn-primary btn-sm" id="btn-submit-qa">
+                            发送追问 ↵
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </aside>
+    </div>
+
+    <!-- ======================= 弹窗 1：导入新文章 ======================= -->
+    <div class="modal-backdrop hidden" id="modal-import-article">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <h3>📥 导入新文章并生成结构化摘要</h3>
+                <button class="modal-close" data-close-modal="modal-import-article">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- 导入方式切换 -->
+                <div class="import-type-tabs">
+                    <button type="button" class="import-tab active" data-source-type="text" id="import-tab-text">
+                        📝 直接粘贴文本
+                    </button>
+                    <button type="button" class="import-tab" data-source-type="url" id="import-tab-url">
+                        🔗 粘贴文章链接 (URL)
+                    </button>
+                    <button type="button" class="import-tab" data-source-type="file" id="import-tab-file">
+                        📂 上传本地文档 (.txt / .md)
+                    </button>
+                </div>
+
+                <!-- 一键填入内置示例文章栏 -->
+                <div class="sample-loader-bar">
+                    <span>✨ 想要快速体验？一键填入示例深度长文：</span>
+                    <div class="sample-buttons" id="import-sample-buttons"></div>
+                </div>
+
+                <form id="form-import-article">
+                    <input type="hidden" id="import-source-type" value="text" />
+
+                    <!-- URL 输入框组 -->
+                    <div class="form-group hidden" id="group-import-url">
+                        <label for="input-import-url">文章网页链接 (URL) <span class="required">*</span></label>
+                        <input
+                            type="url"
+                            id="input-import-url"
+                            class="form-input"
+                            placeholder="https://example.com/article-path (自动提取网页正文并清洗广告与导航)"
+                        />
+                        <span class="form-hint">提示：若目标网站有严格登录墙或反爬限制，您也可以在下方同时粘贴正文作为兜底。</span>
+                    </div>
+
+                    <!-- 本地文件选择组 -->
+                    <div class="form-group hidden" id="group-import-file">
+                        <label for="input-import-file">选择本地文本或 Markdown 文件 (.txt / .md)</label>
+                        <input type="file" id="input-import-file" class="form-input" accept=".txt,.md,.markdown" />
+                    </div>
+
+                    <!-- 标题与作者（可选） -->
+                    <div class="form-row-2col">
+                        <div class="form-group">
+                            <label for="input-import-title">文章标题（选填，留空将自动提取）</label>
+                            <input type="text" id="input-import-title" class="form-input" placeholder="留空将从网页或首段自动提炼标题" />
+                        </div>
+                        <div class="form-group">
+                            <label for="input-import-author">作者 / 来源名称（选填）</label>
+                            <input type="text" id="input-import-author" class="form-input" placeholder="例如：Paul Graham / 少数派 / 经济学人" />
+                        </div>
+                    </div>
+
+                    <!-- 正文文本框 -->
+                    <div class="form-group" id="group-import-text">
+                        <label for="input-import-text" id="label-import-text">文章正文内容 <span class="required">*</span></label>
+                        <textarea
+                            id="input-import-text"
+                            class="form-textarea"
+                            rows="9"
+                            placeholder="在此粘贴文章全文或核心段落（支持中英文长文，系统将自动提取核心观点、关键论据、作者态度与可行动洞察）..."
+                        ></textarea>
+                    </div>
+
+                    <!-- 归属主题多选 -->
+                    <div class="form-group">
+                        <label>同时归入研究「主题」（选填，方便多篇对比总结）：</label>
+                        <div class="checkbox-pills-group" id="import-topics-checkboxes"></div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-ghost" data-close-modal="modal-import-article">取消</button>
+                        <button type="submit" class="btn btn-primary" id="btn-submit-import">
+                            🚀 开始智能解析并生成摘要
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================= 弹窗 2：创建 / 管理对比主题 ======================= -->
+    <div class="modal-backdrop hidden" id="modal-topic-form">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <h3 id="modal-topic-title">🗂️ 创建多文章对比「主题」</h3>
+                <button class="modal-close" data-close-modal="modal-topic-form">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-topic-save">
+                    <input type="hidden" id="input-topic-edit-id" value="" />
+                    <div class="form-row-2col">
+                        <div class="form-group">
+                            <label for="input-topic-name">主题名称 <span class="required">*</span></label>
+                            <input
+                                type="text"
+                                id="input-topic-name"
+                                class="form-input"
+                                required
+                                placeholder="例如：AI 时代的深度阅读与认知升级 / Agent 架构演进对比"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label for="input-topic-color">主题标识颜色</label>
+                            <select id="input-topic-color" class="form-input">
+                                <option value="#4f46e5">🟣 靛蓝 (Indigo)</option>
+                                <option value="#0891b2">🔵 青蓝 (Cyan)</option>
+                                <option value="#059669">🟢 翡翠绿 (Emerald)</option>
+                                <option value="#d97706">🟠 琥珀橙 (Amber)</option>
+                                <option value="#e11d48">🔴 玫瑰红 (Rose)</option>
+                                <option value="#7c3aed">🔮 紫罗兰 (Violet)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="input-topic-desc">主题研究问题或背景描述（选填）</label>
+                        <textarea
+                            id="input-topic-desc"
+                            class="form-textarea"
+                            rows="2"
+                            placeholder="简述你想通过对比这组文章厘清什么核心问题..."
+                        ></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>选择要纳入本主题进行横向对比的文章（建议勾选 2~5 篇）：</label>
+                        <div class="topic-article-selector-list" id="topic-modal-article-list"></div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-ghost" data-close-modal="modal-topic-form">取消</button>
+                        <button type="submit" class="btn btn-primary" id="btn-submit-topic">
+                            ⚡ 保存主题并生成对比总结
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================= 弹窗 3：快速将当前文章归入主题 ======================= -->
+    <div class="modal-backdrop hidden" id="modal-assign-article-topic">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>🗂️ 将文章归入对比「主题」</h3>
+                <button class="modal-close" data-close-modal="modal-assign-article-topic">×</button>
+            </div>
+            <div class="modal-body">
+                <p class="form-hint" style="margin-bottom: 12px;">点击下方主题开关即可将当前文章加入或移出对应主题：</p>
+                <div class="assign-topic-list" id="assign-topic-list-container"></div>
+                <div class="modal-footer" style="margin-top: 16px;">
+                    <button type="button" class="btn btn-secondary" id="btn-assign-create-new-topic">＋ 新建主题</button>
+                    <button type="button" class="btn btn-primary" data-close-modal="modal-assign-article-topic">完成</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================= 弹窗 4：AI 引擎配置 ======================= -->
+    <div class="modal-backdrop hidden" id="modal-llm-settings">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <h3>⚙️ AI 分析引擎设置 (支持 OpenAI / DeepSeek / 通义千问 / Ollama)</h3>
+                <button class="modal-close" data-close-modal="modal-llm-settings">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="engine-info-banner">
+                    <strong>💡 双引擎无忧架构说明：</strong>
+                    <p>本系统内置了<strong>「本地启发式智能文本分析引擎」</strong>与<strong>「OpenAI 兼容大模型 API 引擎」</strong>。无需配置 API Key 即可离线完整体验结构化摘要、批判性追问与多篇主题对比；配置 API Key 后将自动调用大模型进行深度推理。</p>
+                </div>
+
+                <form id="form-llm-settings">
+                    <div class="form-group">
+                        <label for="select-llm-provider">运行模式选择</label>
+                        <select id="select-llm-provider" class="form-input">
+                            <option value="auto">🤖 自动模式 (推荐：配置了 API Key 则调用大模型，否则使用内置智能引擎)</option>
+                            <option value="openai">🌐 强制使用远程大模型 API (OpenAI 兼容接口)</option>
+                            <option value="local">⚡ 强制使用内置本地智能分析引擎 (零成本、极速响应)</option>
+                        </select>
+                    </div>
+
+                    <div class="preset-providers-bar">
+                        <span>常用服务商一键填充 Base URL 与模型：</span>
+                        <button type="button" class="btn-mini" data-preset="openai">OpenAI</button>
+                        <button type="button" class="btn-mini" data-preset="deepseek">DeepSeek</button>
+                        <button type="button" class="btn-mini" data-preset="qwen">通义千问 (DashScope)</button>
+                        <button type="button" class="btn-mini" data-preset="siliconflow">硅基流动 (SiliconFlow)</button>
+                        <button type="button" class="btn-mini" data-preset="ollama">本地 Ollama</button>
+                    </div>
+
+                    <div class="form-row-2col">
+                        <div class="form-group">
+                            <label for="input-llm-base-url">API Base URL</label>
+                            <input
+                                type="url"
+                                id="input-llm-base-url"
+                                class="form-input"
+                                placeholder="https://api.openai.com/v1"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label for="input-llm-model">模型名称 (Model)</label>
+                            <input
+                                type="text"
+                                id="input-llm-model"
+                                class="form-input"
+                                placeholder="gpt-4o-mini / deepseek-chat / qwen-plus"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="form-row-2col">
+                        <div class="form-group">
+                            <label for="input-llm-api-key">API Key <span id="current-key-status" class="form-hint"></span></label>
+                            <input
+                                type="password"
+                                id="input-llm-api-key"
+                                class="form-input"
+                                placeholder="sk-... (留空则保留现有配置或使用内置引擎)"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label for="input-llm-temp">采样温度 (Temperature: 0.0 ~ 1.0)</label>
+                            <input
+                                type="number"
+                                id="input-llm-temp"
+                                class="form-input"
+                                step="0.1"
+                                min="0"
+                                max="1"
+                                value="0.3"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-ghost" data-close-modal="modal-llm-settings">取消</button>
+                        <button type="submit" class="btn btn-primary">💾 保存配置并立即生效</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 全局轻量 Toast 提示容器 -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
