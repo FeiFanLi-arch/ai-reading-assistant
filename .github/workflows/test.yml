@@ -1,0 +1,33 @@
+name: tests
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m pytest
+        env:
+          AI_MODE: demo
+      - run: docker compose config --quiet
+      - run: docker build -t ai-reading-assistant:test .
+      - name: Verify container health and frontend
+        run: |
+          docker run -d --name reader-test -p 127.0.0.1:8000:8000 -e AI_MODE=demo ai-reading-assistant:test
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/health; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8000/health
+          curl -fsS http://127.0.0.1:8000/ | grep -q '<html'
+      - if: always()
+        run: docker logs reader-test || true

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#183e38">
+  <meta name="description" content="把文章读懂，把观点串联。支持结构化摘要、基于原文的追问和主题对比。">
+  <title>读懂 · 个人 AI 阅读助手</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='11' fill='%23183e38'/%3E%3Cpath d='M10 11h8l3 3 3-3h6v19h-7l-3 2-3-2h-7z' fill='none' stroke='%23fff8e8' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script type="module" src="/static/app.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="主导航"></aside>
+    <div class="workspace">
+      <header class="topbar">
+        <button class="icon-btn menu-toggle" id="menu-toggle" aria-label="切换导航" aria-expanded="false">☰</button>
+        <div class="breadcrumb"><span>我的阅读空间</span><span class="crumb-divider">/</span><strong id="page-label">文章库</strong></div>
+        <button class="mode-chip" id="mode-button" title="查看模型与连接设置"><span class="status-dot"></span><span id="mode-label">连接中</span></button>
+      </header>
+      <main id="main" tabindex="-1"><div class="page-loading">正在打开阅读空间…</div></main>
+      <footer class="workspace-footer"><span>READ. CONNECT. THINK.</span><span>让每一次阅读，都留下思考。</span></footer>
+    </div>
+  </div>
+  <dialog id="modal" aria-labelledby="modal-title"></dialog>
+  <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
+  <input type="file" id="import-file" accept="application/json,.json" hidden>
+  <noscript><p class="noscript">请启用 JavaScript 以使用阅读助手。</p></noscript>
+</body>
+</html>
