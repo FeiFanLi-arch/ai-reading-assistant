@@ -34,7 +34,7 @@ Copy-Item .env.example .env
 docker compose up --build -d
 ```
 
-浏览器访问 **http://localhost:8000**。未填写模型密钥即可体验完整流程。
+浏览器访问 **[http://localhost:8000](http://localhost:8000)**。未填写模型密钥即可体验完整流程。
 
 ```sh
 docker compose logs -f reader
@@ -69,7 +69,7 @@ cp .env.example .env
 python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-访问 **http://localhost:8000**。本地默认数据库位置是 `data/reader.db`。
+访问 **[http://localhost:8000](http://localhost:8000)**。本地默认数据库位置是 `data/reader.db`。
 
 ## 接入真实 AI
 
